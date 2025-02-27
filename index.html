@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Website</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Raleway', sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Chat Window */
+        .chat-window {
+            position: fixed;
+            bottom: 80px;
+            right: 30px;
+            width: 350px;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            max-height: 80vh;
+            display: none;
+        }
+
+        /* Close Button */
+        .close {
+            align-self: flex-end;
+            background-color: transparent;
+            color: #ff66b2;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        /* Chat Messages */
+        .chat {
+            width: 100%;
+            margin-bottom: 10px;
+            flex-grow: 1;
+            overflow-y: auto;
+            height: 250px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .messages p {
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px 0;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #4caf50;
+            color: white;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .receiver-message {
+            background-color: #333;
+            color: white;
+            align-self: flex-start;
+        }
+
+        /* Input Area */
+        .input-area {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            background-color: #121212;
+            border-radius: 5px;
+            padding: 5px;
+        }
+
+        .input-area input {
+            background-color: #1c1c1c;
+            border: none;
+            color: #fff;
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-right: 10px;
+            outline: none;
+        }
+
+        .input-area button {
+            background-color: #ff3399;
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Chat Button */
+        .chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #ff3399;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .chat-button img {
+            width: 40px;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Chat Window -->
+    <section class="chat-window">
+        <button class="close">x close</button>
+        <div class="chat">
+            <div class="messages">
+                <p class="user-message">Hi, how are you?</p>
+                <p class="receiver-message">I'm good, what about you?</p>
+            </div>
+        </div>
+        <div class="input-area">
+            <input id="user-input" placeholder="Type a message..." type="text">
+            <button id="send-btn">Send</button>
+        </div>
+    </section>
+
+    <!-- Chat Button -->
+    <div class="chat-button">
+        <img src="https://cdn-icons-png.flaticon.com/512/3119/3119338.png" alt="Start Chat">
+    </div>
+
+    <!-- Google Gemini API -->
+    <script type="importmap">
+        {
+          "imports": {
+            "@google/generative-ai": "https://esm.run/@google/generative-ai"
+          }
+        }
+    </script>
+
+    <script type="module">
+        import { GoogleGenerativeAI } from "@google/generative-ai";
+
+        // Set your Google Gemini API key
+        const API_KEY = "YOUR_GOOGLE_GEMINI_API_KEY";
+        const genAI = new GoogleGenerativeAI(API_KEY);
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const chatButton = document.querySelector(".chat-button");
+            const chatWindow = document.querySelector(".chat-window");
+            const closeButton = document.querySelector(".close");
+            const sendButton = document.querySelector("#send-btn");
+            const userInput = document.querySelector("#user-input");
+            const chatBox = document.querySelector(".messages");
+
+            // Toggle Chat Window
+            chatButton.addEventListener("click", () => {
+                chatWindow.style.display = "flex";
+            });
+
+            closeButton.addEventListener("click", () => {
+                chatWindow.style.display = "none";
+            });
+
+            // Send Message
+            sendButton.addEventListener("click", async () => {
+                let message = userInput.value.trim();
+                if (message === "") return;
+
+                // Append user message
+                let userMsg = document.createElement("p");
+                userMsg.classList.add("user-message");
+                userMsg.innerText = message;
+                chatBox.appendChild(userMsg);
+
+                // Clear input field
+                userInput.value = "";
+
+                // Get AI response
+                let response = await getGeminiResponse(message);
+
+                // Append AI response
+                let aiMsg = document.createElement("p");
+                aiMsg.classList.add("receiver-message");
+                aiMsg.innerText = response;
+                chatBox.appendChild(aiMsg);
+
+                // Scroll to the bottom
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+
+            // Fetch response from Google Gemini API
+            async function getGeminiResponse(prompt) {
+                try {
+                    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+                    const result = await model.generateContent(prompt);
+                    const response = result.response.text();
+                    return response;
+                } catch (error) {
+                    console.error("Error:", error);
+                    return "Sorry, there was an issue with the chat.";
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
+
+
+
+
+
+Code chat application hiding in button
